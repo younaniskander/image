@@ -30,13 +30,9 @@ download_model(model_url, model_path)
 # Load your trained model
 model = tf.keras.models.load_model(model_path, 
                                     custom_objects={'accuracy' : tf.keras.metrics.MeanIoU(num_classes=4),
-                                                    "dice_coef": dice_coef,
                                                     "precision": precision,
                                                     "sensitivity":sensitivity,
                                                     "specificity":specificity,
-                                                    "dice_coef_necrotic": dice_coef_necrotic,
-                                                    "dice_coef_edema": dice_coef_edema,
-                                                    "dice_coef_enhancing": dice_coef_enhancing
                                                     }, compile=False)
 
 # Function to preprocess the image
