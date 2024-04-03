@@ -6,6 +6,8 @@ import requests
 from io import BytesIO
 import os
 
+from tensorflow.keras.metrics import dice_coef  
+
 # Define a function to download the model
 def download_model(model_url, model_path):
     if not os.path.exists(model_path):
