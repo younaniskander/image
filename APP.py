@@ -29,11 +29,14 @@ def perform_segmentation(image):
 
 # Function to calculate evaluation metrics (accuracy, precision, sensitivity)
 def calculate_metrics(segmented_mask, ground_truth_mask):
+    # Convert ground truth mask to binary
+    ret, ground_truth_mask_binary = cv2.threshold(cv2.cvtColor(ground_truth_mask, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY)
+    
     # Calculate True Positives, True Negatives, False Positives, False Negatives
-    TP = np.sum(np.logical_and(segmented_mask == 1, ground_truth_mask == 1))
-    TN = np.sum(np.logical_and(segmented_mask == 0, ground_truth_mask == 0))
-    FP = np.sum(np.logical_and(segmented_mask == 1, ground_truth_mask == 0))
-    FN = np.sum(np.logical_and(segmented_mask == 0, ground_truth_mask == 1))
+    TP = np.sum(np.logical_and(segmented_mask == 1, ground_truth_mask_binary == 1))
+    TN = np.sum(np.logical_and(segmented_mask == 0, ground_truth_mask_binary == 0))
+    FP = np.sum(np.logical_and(segmented_mask == 1, ground_truth_mask_binary == 0))
+    FN = np.sum(np.logical_and(segmented_mask == 0, ground_truth_mask_binary == 1))
     
     # Calculate metrics
     accuracy = (TP + TN) / (TP + TN + FP + FN)
