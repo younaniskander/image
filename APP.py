@@ -1,64 +1,77 @@
 import streamlit as st
-import tensorflow as tf
-from PIL import Image
+import cv2
 import numpy as np
-import os
+from PIL import Image
 
-# Function to load a model uploaded by the user
-def load_model(uploaded_model):
-    if uploaded_model is not None:
-        # To read the model file, we need to write it to a temporary file then load it
-        with open("model_UNet.h5", "wb") as f:
-            f.write(uploaded_model.getbuffer())
-        return tf.keras.models.load_model("model_UNet.h5", 
-                                          custom_objects={'accuracy': tf.keras.metrics.MeanIoU(num_classes=4),
-                                                          # "dice_coef": dice_coef,
-                                                          "precision": precision,
-                                                          "sensitivity": sensitivity,
-                                                          "specificity": specificity,
-                                                          # "dice_coef_necrotic": dice_coef_necrotic,
-                                                          # "dice_coef_edema": dice_coef_edema,
-                                                          # "dice_coef_enhancing": dice_coef_enhancing
-                                                         }, compile=False)
-    return None
+# Function to perform image segmentation using GrabCut algorithm
+def perform_segmentation(image):
+    # Convert image to numpy array
+    img_np = np.array(image)
+    
+    # Initialize mask with zeros
+    mask = np.zeros(img_np.shape[:2], np.uint8)
+    
+    # Define the rectangle for initialization
+    rect = (50, 50, img_np.shape[1]-50, img_np.shape[0]-50)
+    
+    # Run GrabCut algorithm
+    bgdModel = np.zeros((1,65),np.float64)
+    fgdModel = np.zeros((1,65),np.float64)
+    cv2.grabCut(img_np,mask,rect,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_RECT)
+    
+    # Create mask where all probable foreground and definite foreground are set to 1
+    mask2 = np.where((mask==2)|(mask==0),0,1).astype('uint8')
+    
+    # Apply the mask to the original image
+    segmented_image = img_np * mask2[:, :, np.newaxis]
+    
+    return segmented_image, mask2
 
-# Function to preprocess the image
-def preprocess_image(image, image_width=128, image_height=128): # Adjust image_width and image_height as needed
-    image = image.resize((image_width, image_height))
-    image = np.array(image)
-    image = image / 255.0
-    image = np.expand_dims(image, axis=0)
-    return image
-
-# Function to make predictions
-def make_prediction(model, image):
-    if model and image is not None:
-        preprocessed_img = preprocess_image(image)
-        prediction = model.predict(preprocessed_img)
-        return prediction
-    return None
+# Function to calculate evaluation metrics (accuracy, precision, sensitivity)
+def calculate_metrics(segmented_mask, ground_truth_mask):
+    # Calculate True Positives, True Negatives, False Positives, False Negatives
+    TP = np.sum(np.logical_and(segmented_mask == 1, ground_truth_mask == 1))
+    TN = np.sum(np.logical_and(segmented_mask == 0, ground_truth_mask == 0))
+    FP = np.sum(np.logical_and(segmented_mask == 1, ground_truth_mask == 0))
+    FN = np.sum(np.logical_and(segmented_mask == 0, ground_truth_mask == 1))
+    
+    # Calculate metrics
+    accuracy = (TP + TN) / (TP + TN + FP + FN)
+    precision = TP / (TP + FP)
+    sensitivity = TP / (TP + FN)
+    
+    return accuracy, precision, sensitivity
 
 # Streamlit app
 def main():
-    st.title("Image Classification with your Model")
+    st.title("Brain Tumor Image Segmentation")
 
-    # Upload model
-    uploaded_model = st.file_uploader("Upload a model", type=["h5"], key="model")
-    model = load_model(uploaded_model)
+    # Upload ground truth mask (if available)
+    ground_truth_mask_file = st.file_uploader("Upload ground truth mask (if available)", type=["png", "jpg"], key="mask")
+    if ground_truth_mask_file is not None:
+        ground_truth_mask = np.array(Image.open(ground_truth_mask_file))
+    else:
+        ground_truth_mask = None
 
     # Upload image
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"], key="image")
-
+    uploaded_file = st.file_uploader("Upload brain MRI image", type=["jpg", "jpeg", "png"], key="image")
+    
     if uploaded_file is not None:
         image = Image.open(uploaded_file)
         st.image(image, caption='Uploaded Image.', use_column_width=True)
+        
+        # Perform image segmentation
+        segmented_image, segmented_mask = perform_segmentation(image)
+        
+        # Calculate evaluation metrics if ground truth mask is provided
+        if ground_truth_mask is not None:
+            accuracy, precision, sensitivity = calculate_metrics(segmented_mask, ground_truth_mask)
+            st.write(f"Accuracy: {accuracy:.2f}")
+            st.write(f"Precision: {precision:.2f}")
+            st.write(f"Sensitivity: {sensitivity:.2f}")
 
-        if st.button('Make Prediction'):
-            if model is not None:
-                prediction = make_prediction(model, image)
-                st.write("Prediction:", prediction)
-            else:
-                st.error("Please upload a model to make predictions.")
+        # Display segmented image
+        st.image(segmented_image, caption='Segmented Image.', use_column_width=True)
 
 if __name__ == '__main__':
     main()
