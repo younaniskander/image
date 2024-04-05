@@ -12,7 +12,7 @@ def load_model(uploaded_model):
             f.write(uploaded_model.getbuffer())
         return tf.keras.models.load_model("model_UNet.h5", 
                                           custom_objects={'accuracy': tf.keras.metrics.MeanIoU(num_classes=4),
-                                                          "dice_coef": dice_coef,
+                                                          # "dice_coef": dice_coef,
                                                           "precision": precision,
                                                           "sensitivity": sensitivity,
                                                           "specificity": specificity,
