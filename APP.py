@@ -4,14 +4,9 @@ import numpy as np
 from PIL import Image
 import tensorflow as tf
 
-# Function to load a model uploaded by the user
-def load_model(uploaded_model):
-    if uploaded_model is not None:
-        # To read the model file, we need to write it to a temporary file then load it
-        with open("temp_model.h5", "wb") as f:
-            f.write(uploaded_model.getbuffer())
-        return tf.keras.models.load_model("temp_model.h5", compile=False)
-    return None
+# Function to load a pre-trained model from a file path
+def load_pretrained_model(model_path):
+    return tf.keras.models.load_model(model_path, compile=False)
 
 # Function to perform image segmentation using the loaded model
 def perform_segmentation(model, image):
@@ -49,9 +44,9 @@ def calculate_metrics(segmented_mask, ground_truth_mask):
 def main():
     st.title("Brain Tumor Image Segmentation")
 
-    # Upload model
-    uploaded_model = st.file_uploader("Upload a model", type=["h5"], key="model")
-    model = load_model(uploaded_model)
+    # Load pre-trained model from a file path
+    model_path = "model_UNet.h5"  # Update this to the path where your model is stored
+    model = load_pretrained_model(model_path)
 
     # Upload ground truth mask (if available)
     ground_truth_mask_file = st.file_uploader("Upload ground truth mask (if available)", type=["png", "jpg"], key="mask")
